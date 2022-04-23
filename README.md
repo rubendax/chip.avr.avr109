@@ -3,11 +3,13 @@
 Flash firmware onto an avr device running a bootloader that speaks the [avr109](http://www.atmel.com/images/doc1644.pdf) protocol.
 
 
-### This is a fork of https://github.com/tmpvar/chip.avr.avr109 which ignores the device signature miss-match error. This is to facilitate flashing using multiple bootloaders. This is experimental and for a very specific use-case.
-
-## install
-
-`npm install chip.avr.avr109`
+#### This is a fork of https://github.com/tmpvar/chip.avr.avr109 which will always allow the CATERIN bootloader regardless of the user specified board signature.
+##### User specified signature can be used for an alternative bootloader if needed.
+```javascript
+      if (d.toString() !== that.signature && d.toString() !== 'CATERIN') { // avr109 will always accept CATERIN bootloader
+        fn(new Error('Invalid device signature; expecting: ' + that.signature + ' or CATERIN - received: ' + d.toString()));
+      }
+```
 
 ## use
 

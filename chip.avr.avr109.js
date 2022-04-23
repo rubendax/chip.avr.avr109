@@ -90,12 +90,9 @@ out.Flasher.prototype = {
   prepare: function (fn) {
     var that = this;
     this.c('S', function (d) {
-      if (d.toString() !== that.signature) { // Ruben commented out error to ignore missmatched device signature
-        // fn(new Error('Invalid device signature; expecting: ' + that.signature + ' received: ' + d.toString()));
-        console.error('Invalid device signature; expecting: ' + that.signature + ' received: ' + d.toString());
-        console.log("device signature: ")
-        console.log(d);
-        console.warn('Ignoring error!');
+      if (d.toString() !== that.signature && d.toString() !== 'CATERIN') { // avr109 will always accept CATERIN bootloader
+        fn(new Error('Invalid device signature; expecting: ' + that.signature + ' or CATERIN - received: ' + d.toString()));
+        console.error('Invalid device signature; expecting: ' + that.signature + ' or CATERIN - received: ' + d.toString());
       }
 
     })
