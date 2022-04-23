@@ -2,6 +2,8 @@
 
 Flash firmware onto an avr device running a bootloader that speaks the [avr109](http://www.atmel.com/images/doc1644.pdf) protocol.
 
+### install
+This is a fork of https://github.com/tmpvar/chip.avr.avr109 which ignores the device signature miss-match error. This is to facilitate flashing using multiple bootloaders. This is experimental and for a very specific use-case.
 ## install
 
 `npm install chip.avr.avr109`
