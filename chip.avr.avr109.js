@@ -1,26 +1,26 @@
 var
   intelHex = require('intel-hex'),
-  Stream   = require('stream').Stream,
-  util     = require('util');
+  Stream = require('stream').Stream,
+  util = require('util');
 
 var out = module.exports = {};
 
-var d = function(c) {
+var d = function (c) {
   return (c + '').charCodeAt(0);
 };
 
-out.Flasher = function(serialport, options) {
+out.Flasher = function (serialport, options) {
   var that = this;
   this.options = options || {};
   this.sp = serialport;
   this.signature = this.options.signature || 'LUFACDC';
 
   if (this.options.debug) {
-    this.sp.on('data', function(d) {
+    this.sp.on('data', function (d) {
       process.stdout.write(' -> ');
 
-      for (var i=0; i<d.length; i++) {
-        var c = d.toString().substring(i, i+1);
+      for (var i = 0; i < d.length; i++) {
+        var c = d.toString().substring(i, i + 1);
         if (c.charCodeAt(0) < 32 || c.charCodeAt(0) > 126) {
           c = '.';
         }
@@ -31,10 +31,10 @@ out.Flasher = function(serialport, options) {
     });
   }
 
-  this.c = function(value, fn, expectedResponseLength) {
+  this.c = function (value, fn, expectedResponseLength) {
     that.cmds.push({
-      value : value,
-      callback : function(data) {
+      value: value,
+      callback: function (data) {
         fn && fn(data);
       },
       expectedResponseLength: expectedResponseLength
@@ -48,9 +48,9 @@ out.Flasher = function(serialport, options) {
 };
 
 out.Flasher.prototype = {
-  run : function(fn) {
+  run: function (fn) {
     var that = this;
-    process.nextTick(function() {
+    process.nextTick(function () {
       if (that.running) { return; }
       var cmd = that.cmds.shift();
 
@@ -58,19 +58,19 @@ out.Flasher.prototype = {
         running = true;
         that.options.debug && process.stdout.write('Send: ' + cmd.value);
         var response = new Buffer(0);
-        var onData = function(d) {
+        var onData = function (d) {
           response = Buffer.concat([
             response,
             d
           ]);
 
           if (cmd.expectedResponseLength === undefined || // optional expected length not passed in
-              cmd.expectedResponseLength <= response.length) {
+            cmd.expectedResponseLength <= response.length) {
             that.sp.removeListener('data', onData);
             that.running = false;
             cmd.callback(response);
 
-            process.nextTick(function() {
+            process.nextTick(function () {
               if (that.cmds.length > 0) {
                 that.run(fn);
               } else {
@@ -87,58 +87,63 @@ out.Flasher.prototype = {
     });
   },
 
-  prepare : function(fn) {
+  prepare: function (fn) {
     var that = this;
-    this.c('S', function(d) {
-          if (d.toString() !== that.signature) {
-            fn(new Error('Invalid device signature; expecting: ' + that.signature + ' received: ' + d.toString()));
-          }
-        })
-        .c('V')
-        .c('v')
-        .c('p')
-        .c('a')
-        .c('b', function(d) {
-          if ((d.toString() || 'X')[0] != 'Y') {
-            fn(new Error('Buffered memory access not supported.'));
-          }
-          that.flashChunkSize = d.readUInt16BE(1);
-        })
-        .c('t')
-        .c('TD')
-        .c('P')
-        .c('F')
-        .c('F')
-        .c('F')
-        .c('N')
-        .c('N')
-        .c('N')
-        .c('Q')
-        .c('Q')
-        .c('Q')
-        .c([d('A'), 0x03, 0xfc])
-        .c([d('g'), 0x00, 0x01, d('E')])
-        .c([d('A'), 0x03, 0xff])
-        .c([d('g'), 0x00, 0x01, d('E')])
-        .c([d('A'), 0x03, 0xff])
-        .c([d('g'), 0x00, 0x01, d('E')])
-        .c([d('A'), 0x03, 0xff])
-        .c([d('g'), 0x00, 0x01, d('E')])
+    this.c('S', function (d) {
+      if (d.toString() !== that.signature) { // Ruben commented out error to ignore missmatched device signature
+        // fn(new Error('Invalid device signature; expecting: ' + that.signature + ' received: ' + d.toString()));
+        console.error('Invalid device signature; expecting: ' + that.signature + ' received: ' + d.toString());
+        console.log("device signature: ")
+        console.log(d);
+        console.warn('Ignoring error!');
+      }
 
-    this.run(function() {
+    })
+      .c('V')
+      .c('v')
+      .c('p')
+      .c('a')
+      .c('b', function (d) {
+        if ((d.toString() || 'X')[0] != 'Y') {
+          fn(new Error('Buffered memory access not supported.'));
+        }
+        that.flashChunkSize = d.readUInt16BE(1);
+      })
+      .c('t')
+      .c('TD')
+      .c('P')
+      .c('F')
+      .c('F')
+      .c('F')
+      .c('N')
+      .c('N')
+      .c('N')
+      .c('Q')
+      .c('Q')
+      .c('Q')
+      .c([d('A'), 0x03, 0xfc])
+      .c([d('g'), 0x00, 0x01, d('E')])
+      .c([d('A'), 0x03, 0xff])
+      .c([d('g'), 0x00, 0x01, d('E')])
+      .c([d('A'), 0x03, 0xff])
+      .c([d('g'), 0x00, 0x01, d('E')])
+      .c([d('A'), 0x03, 0xff])
+      .c([d('g'), 0x00, 0x01, d('E')])
+
+    this.run(function () {
       fn(null, that);
     });
   },
 
-  erase : function(fn) {
-    this.c('e', function() {
+  erase: function (fn) {
+    this.c('e', function () {
       fn && fn();
     }) // erase
 
     this.run();
   },
 
-  program : function(fullString, fn) {
+  program: function (fullString, fn) {
 
     var
       that = this,
@@ -147,7 +152,7 @@ out.Flasher.prototype = {
 
     this.totalBytes = 0;
 
-    this.c([d('A'), 0x00, 0x00], function() {
+    this.c([d('A'), 0x00, 0x00], function () {
       converter = intelHex.parse(fullString);
 
       that.totalBytes = converter.data.length;
@@ -159,24 +164,24 @@ out.Flasher.prototype = {
       that.options.debug && console.log('programming', bytes.length, 'bytes');
       that.chunksSent = [];
 
-      for (var i=0; i<bytes.length; i+=that.flashChunkSize) {
-        var chunk = Array.prototype.slice.call(converter.data.slice(i, i+that.flashChunkSize));
+      for (var i = 0; i < bytes.length; i += that.flashChunkSize) {
+        var chunk = Array.prototype.slice.call(converter.data.slice(i, i + that.flashChunkSize));
         that.chunksSent.push(chunk);
         that.c([d('B'), (chunk.length >> 8) & 0xFF, chunk.length & 0xFF, d('F')].concat(chunk));
       }
     });
 
-    this.run(function() { fn && fn() });
+    this.run(function () { fn && fn() });
   },
 
-  verify : function(fn) {
+  verify: function (fn) {
     var that = this;
     // compare flash on device with the chunks we sent
-    this.c([d('A'), 0x00, 0x00], function() {
+    this.c([d('A'), 0x00, 0x00], function () {
 
       var
         index = 0,
-        compare = function(deviceData) {
+        compare = function (deviceData) {
           var error = null;
           index++;
 
@@ -189,7 +194,7 @@ out.Flasher.prototype = {
           var localChunk = that.allBytes.splice(0, deviceDataLength);
 
           // iterate through the bytes sent to compare with the latest bytes received
-          localChunk.forEach(function(val, idx) {
+          localChunk.forEach(function (val, idx) {
             if (val !== deviceData.readUInt8(idx)) {
               error = new Error('Firmware on the device does not match local data');
             }
@@ -199,11 +204,11 @@ out.Flasher.prototype = {
             return fn(error);
           }
 
-          process.nextTick(function() {
+          process.nextTick(function () {
             var readSize = that.flashChunkSize;
-            that.options.debug && console.log(that.totalBytes - index*that.flashChunkSize);
-            if (that.totalBytes - index*that.flashChunkSize < that.flashChunkSize) {
-              readSize = that.totalBytes - index*that.flashChunkSize;
+            that.options.debug && console.log(that.totalBytes - index * that.flashChunkSize);
+            if (that.totalBytes - index * that.flashChunkSize < that.flashChunkSize) {
+              readSize = that.totalBytes - index * that.flashChunkSize;
             }
             that.c([d('g'), (readSize >> 8) & 0xFF, readSize & 0xFF, d('F')], compare, readSize);
             that.run();
@@ -218,28 +223,28 @@ out.Flasher.prototype = {
     that.run();
   },
 
-  fuseCheck : function(fn) {
+  fuseCheck: function (fn) {
     this.options.debug && console.log('checking fuses');
     // fuse check
     this.c('F')
-        .c('F')
-        .c('F')
-        .c('N')
-        .c('N')
-        .c('N')
-        .c('Q')
-        .c('Q')
-        .c('Q')
-        .c('L')
-        .c('E');
+      .c('F')
+      .c('F')
+      .c('N')
+      .c('N')
+      .c('N')
+      .c('Q')
+      .c('Q')
+      .c('Q')
+      .c('L')
+      .c('E');
 
-    this.run(function() {
+    this.run(function () {
       fn();
     });
   }
 };
 
-out.init = function(serialport, options, fn) {
+out.init = function (serialport, options, fn) {
   if (typeof options === 'function' && !fn) {
     fn = options;
     options = {};
