@@ -89,20 +89,28 @@ out.Flasher.prototype = {
 
   prepare: function (fn) {
     var that = this;
+    var hasFailed = false;
+
     this.c('S', function (d) {
       if (d.toString() !== that.signature && d.toString() !== 'CATERIN' && d.toString() !== 'ANYKEY ') { // avr109 will always accept CATERINA or ANYKEY bootloader
+        hasFailed = true;
+        that.cmds = []; // clear remaining commands to prevent double-callback
         fn(new Error('Invalid device signature; expecting: ' + that.signature + ' - received: ' + d.toString()));
         console.error('Invalid device signature; expecting: ' + that.signature + ' - received: ' + d.toString());
+        return;
       }
 
-    })
+    }, 7) // expect 7-byte signature response before firing callback
       .c('V')
       .c('v')
       .c('p')
       .c('a')
       .c('b', function (d) {
         if ((d.toString() || 'X')[0] != 'Y') {
+          hasFailed = true;
+          that.cmds = [];
           fn(new Error('Buffered memory access not supported.'));
+          return;
         }
         that.flashChunkSize = d.readUInt16BE(1);
       })
@@ -128,7 +136,9 @@ out.Flasher.prototype = {
       .c([d('g'), 0x00, 0x01, d('E')])
 
     this.run(function () {
-      fn(null, that);
+      if (!hasFailed) {
+        fn(null, that);
+      }
     });
   },
 
